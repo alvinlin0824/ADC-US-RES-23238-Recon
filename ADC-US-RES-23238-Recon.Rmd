@@ -61,8 +61,8 @@ events <- events_path |>
                  Time = hms::as_hms(Time)) |> 
           # Remove Duplicates
           distinct() |> 
-          # slice the latest time
-          slice_max(Time,n = 1,by = c(`Subject ID`,`Condition ID`,`Sensor Serial Number`)) |> 
+          # slice the latest time by considering replaced sensors
+          slice_max(Time,n = 1,by = c(`Subject ID`,`Condition ID`)) |> 
           arrange(`Subject ID`,`Condition ID`,Date, Time)
 ```
 
@@ -109,13 +109,14 @@ du12de <- du1 |>
                 by = join_by(Subject, `__STUDYEVENTREPEATKEY`)) |> 
           # Consider replaced sensor
           anti_join(
-                de |> 
+                de |>
                 filter(str_detect(DEORES06,regex("Sensor replaced",ignore_case = T))),
-                by = c("Subject" = "Subject", "DUNUM1" = "DESPID02", "DUNUM2" = "DESPID14")) |> 
+                by = c("Subject" = "Subject", "DUNUM1" = "DESPID02", "DUNUM2" = "DESPID14")) |>
           left_join(UID, by = join_by(DUNUM2 == `Serial Number`)) |> 
           select(!c(`__STUDYEVENTREPEATKEY`)) |> 
           arrange(Subject, DUCD, DUDTC1, DUTM1)
 ```
+
 
 ```{r Convert UID to sensro serial number if needed}
 convert_UID_to_sensor_serial_number <- function(data,col){
