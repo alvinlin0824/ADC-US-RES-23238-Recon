@@ -25,6 +25,9 @@ params:
       input: file
     data5: FALSE
 ---
+<!-- UUU \\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238 -->
+<!-- EDC \\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current -->
+
 ```{r include=F}
 options(shiny.maxRequestSize = 30*1024^2)
 ```
@@ -114,8 +117,8 @@ events <- events_path |>
 }
 ```
 
-```{r 005}
-# du1 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\du1.sas7bdat)"))
+```{r Test DU1}
+# du1 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\du1.sas7bdat)"))
 ```
 
 ```{r DU1}
@@ -128,8 +131,8 @@ du1 <- du1 |>
        arrange(Subject,`__STUDYEVENTREPEATKEY`)
 ```
 
-```{r}
-# du2 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\du2.sas7bdat)"))
+```{r Test DU2}
+# du2 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\du2.sas7bdat)"))
 ```
 
 ```{r DU2}
@@ -141,8 +144,8 @@ du2 <- du2 |>
        arrange(Subject,`__STUDYEVENTREPEATKEY`)
 ```
 
-```{r}
-# de <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\de.sas7bdat)"))
+```{r Test DE}
+# de <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\de.sas7bdat)"))
 ```
 
 ```{r DE}
@@ -154,7 +157,7 @@ de <- de |>
              DEORES02 = str_to_sentence(DEORES02))
 ```
 
-```{r Load sensor serial number conversion}
+```{r Multiple sheet function}
 read_excel_allsheets <- function(filename, tibble = FALSE, n) {
     sheets <- readxl::excel_sheets(filename)
     x <- lapply(sheets, function(X) readxl::read_excel(filename, sheet = X, skip = n))
@@ -166,9 +169,19 @@ read_excel_allsheets <- function(filename, tibble = FALSE, n) {
 #   list_rbind()
 ```
 
-```{r}
+```{r Test UID}
+# UID <- read_excel_allsheets(gsub("\\\\", "/", 
+#       r"(C:\Users\LINAX10\Downloads\Lactate Short Sensor Serialization.xlsx)"),tibble = TRUE, n = 3) |> 
+#        list_rbind() |> 
+#        select(1:2) |> 
+#        set_names(c("Serial Number","UID"))
+```
+
+```{r Load sensor serial number conversion}
 UID <- read_excel_allsheets(params$data4,tibble = TRUE, n = 3) |>
-       list_rbind()
+       list_rbind() |> 
+       select(1:2) |> 
+       set_names(c("Serial Number","UID"))
 ```
 
 ```{r}
