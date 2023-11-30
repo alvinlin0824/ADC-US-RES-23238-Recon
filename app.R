@@ -18,12 +18,16 @@ ui <- fluidPage(
                   verbatimTextOutput("text"),
                   rclipboardSetup(),
                   uiOutput("clip"),
-                  fileInput("du1",h6("Please Upload DU1"),accept = ".sas7bdat",width = "400px"),
-                  fileInput("du2",h6("Please Upload DU2"),accept = ".sas7bdat",width = "400px"),
-                  fileInput("de",h6("Please Upload DE"),accept = ".sas7bdat",width = "400px"),
-                  actionButton("reset","Refresh")
-  )
-  ),
+                  br())),
+  fluidRow(column(width = 3,
+                  fileInput("du1",h6("Please Upload DU1"),accept = ".sas7bdat",width = "400px")),
+           column(width = 3,
+                  fileInput("du2",h6("Please Upload DU2"),accept = ".sas7bdat",width = "400px")),
+           column(width = 3,
+                  fileInput("de",h6("Please Upload DE"),accept = ".sas7bdat",width = "400px")),
+           column(width = 3,
+                  fileInput("sa",h6("Please Upload Sensor Sheet"),accept = ".xlsx",width = "400px")),
+                  actionButton("reset","Refresh")),
   br(),
   fluidRow(column(width = 12, downloadButton("download","Download Report",class = "btn-block", style = "width:100%;")))
 )
@@ -76,20 +80,9 @@ server <- function(input, output, session) {
                      data1 = input$du1$datapath,
                      data2 = input$du2$datapath,
                      data3 = input$de$datapath,
-                     data4 = str_c(short,input$study)
+                     data4 = input$sa$datapath,
+                     data5 = str_c(short,input$study)
       )
-      ## Notification
-
-    #   eventReactive(input$download,{
-    #     withProgress(message = "Rendering Report..." ,{
-    #       for (i in seq_len(10)) {
-    #         Sys.sleep(0.5)
-    #         incProgress(1 / 10)
-    #       }
-    #     })
-    # })
-
-
       id <- showNotification(
         "Rendering Report...",
         duration = NULL,

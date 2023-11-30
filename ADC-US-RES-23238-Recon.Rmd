@@ -1,5 +1,5 @@
 ---
-title: "InHouse 23238 `r params$Study` Data Reconciliation"
+title: "ADC-US-RES-23238 `r params$Study` Reconciliation"
 author: "Alvin, Lin"
 date: "`r Sys.Date()`"
 date-format: full 
@@ -19,7 +19,11 @@ params:
       label: "Upload DE :"
       value: FALSE
       input: file
-    data4: FALSE
+    data4:
+      label: "Upload SA :"
+      value: FALSE
+      input: file
+    data5: FALSE
 ---
 ```{r include=F}
 options(shiny.maxRequestSize = 30*1024^2)
@@ -44,11 +48,11 @@ library(htmltools)
 
 ```{r}
 # Use base to try and it can work in R shiny
-# events_list <- list.files(path = params$data4,full.names = T,pattern = "*events.csv",recursive = T)
+events_list <- list.files(path = params$data5,full.names = T,pattern = "*events.csv|*devices.csv",recursive = T)
 ```
 
 ```{r Load events.csv or devices.csv}
-events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\005)"),recurse = T,glob = "*events.csv|*devices.csv")
+# events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\005)"),recurse = T,glob = "*events.csv|*devices.csv")
 # events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\008\UUU)"),recurse = T,glob = "*events.csv|*devices.csv")
 ```
 
@@ -111,11 +115,11 @@ events <- events_path |>
 ```
 
 ```{r 005}
-du1 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\du1.sas7bdat)"))
+# du1 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\du1.sas7bdat)"))
 ```
 
 ```{r DU1}
-# du1 <- read_sas(params$data1)
+du1 <- read_sas(params$data1)
 du1 <- du1 |> 
        filter(!str_detect(DUYN1,regex("CHECK HERE IF NO DATA RECORDED|no_data_recorded",ignore_case = T))) |>
        mutate(Subject = as.character(SubjectID),
@@ -125,11 +129,11 @@ du1 <- du1 |>
 ```
 
 ```{r}
-du2 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\du2.sas7bdat)"))
+# du2 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\du2.sas7bdat)"))
 ```
 
 ```{r DU2}
-# du2 <- read_sas(params$data2)
+du2 <- read_sas(params$data2)
 du2 <- du2 |>
        filter(!str_detect(DUORES8,"^$|pattern")) |>
        mutate(Subject = as.character(SubjectID),
@@ -138,11 +142,11 @@ du2 <- du2 |>
 ```
 
 ```{r}
-de <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\de.sas7bdat)"))
+# de <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\de.sas7bdat)"))
 ```
 
 ```{r DE}
-# de <- read_sas(params$data3)
+de <- read_sas(params$data3)
 de <- de |>
       filter(!str_detect(DEYN01,regex("Check here if no data recorded",ignore_case = T))) |>
       mutate(Subject = as.character(SubjectID),
@@ -158,8 +162,13 @@ read_excel_allsheets <- function(filename, tibble = FALSE, n) {
     names(x) <- sheets
     x
 }
-UID <- read_excel_allsheets(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Sensor Systems\ADC-US-RES-23238_InHouse Sensor\Statistics\Programs\Outputs\SE005\AL\GKS NP 2 - Serialization.xlsx)"),tibble = TRUE, n = 3) |>
-  list_rbind()
+# UID <- read_excel_allsheets(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Sensor Systems\ADC-US-RES-23238_InHouse Sensor\Statistics\Programs\Outputs\SE005\AL\GKS NP 2 - Serialization.xlsx)"),tibble = TRUE, n = 3) |>
+#   list_rbind()
+```
+
+```{r}
+UID <- read_excel_allsheets(params$data4,tibble = TRUE, n = 3) |>
+       list_rbind()
 ```
 
 ```{r}
