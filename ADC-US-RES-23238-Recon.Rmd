@@ -177,7 +177,7 @@ read_excel_allsheets <- function(filename, tibble = FALSE, n) {
 #        set_names(c("Serial Number","UID"))
 ```
 
-```{r Load sensor serial number conversion}
+```{r Load sensor serial number conversion, eval = params$data4}
 UID <- read_excel_allsheets(params$data4,tibble = TRUE, n = 3) |>
        list_rbind() |> 
        select(1:2) |> 
