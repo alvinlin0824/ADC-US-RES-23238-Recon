@@ -1,11 +1,15 @@
 library(shiny)
 library(tidyverse)
 library(shinyFeedback)
+library(fs)
 library(rclipboard)
 options(shiny.maxRequestSize = 30*1024^2)
 
-# 001~010
+# T drive path
 short <- gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\)")
+# study event
+event <- dir_ls(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current)")) |> 
+         str_extract("(?<=Current/).{3}")
 
 ui <- fluidPage(
   theme = bslib::bs_theme(bootswatch = "minty"),
@@ -38,11 +42,11 @@ server <- function(input, output, session) {
   observeEvent(input$reset,{
     session$reload()
   })
-
+  # str_c("00",as.character(seq(1,9))),str_c("0",as.character(seq(10,15)))
   text <- reactive({
         req(input$study)
 
-        exists <- input$study %in% c(str_c("00",as.character(seq(1,9))),str_c("0",as.character(seq(10,15))))
+        exists <- input$study %in% c(event)
         feedbackWarning("study",!exists,"Unkown Study")
         req(exists,cancelOutput = FALSE)
 
