@@ -55,7 +55,7 @@ events_list <- list.files(path = params$data5,full.names = T,pattern = "*events.
 ```
 
 ```{r Load events.csv or devices.csv}
-events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\005)"),recurse = T,glob = "*events.csv|*devices.csv")
+# events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\005)"),recurse = T,glob = "*events.csv|*devices.csv")
 # events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\003\UUU)"),recurse = T,glob = "*events.csv|*devices.csv")
 # events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\004\UUU)"),recurse = T,glob = "*events.csv|*devices.csv")
 # events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\008\UUU)"),recurse = T,glob = "*events.csv|*devices.csv")
@@ -120,11 +120,11 @@ events <- events_path |>
 ```
 
 ```{r Test DU1}
-du1 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\du1.sas7bdat)"))
+# du1 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\du1.sas7bdat)"))
 ```
 
 ```{r DU1}
-# du1 <- read_sas(params$data1)
+du1 <- read_sas(params$data1)
 du1 <- du1 |> 
        filter(!str_detect(DUYN1,regex("CHECK HERE IF NO DATA RECORDED|no_data_recorded",ignore_case = T))) |>
        mutate(Subject = as.character(SubjectID),
@@ -134,11 +134,11 @@ du1 <- du1 |>
 ```
 
 ```{r Test DU2}
-du2 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\du2.sas7bdat)"))
+# du2 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\du2.sas7bdat)"))
 ```
 
 ```{r DU2}
-# du2 <- read_sas(params$data2)
+du2 <- read_sas(params$data2)
 du2 <- du2 |>
        filter(!str_detect(DUORES8,"^$|pattern")) |>
        mutate(Subject = as.character(SubjectID),
@@ -147,11 +147,11 @@ du2 <- du2 |>
 ```
 
 ```{r Test DE}
-de <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\005\de.sas7bdat)"))
+# de <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\de.sas7bdat)"))
 ```
 
 ```{r DE}
-# de <- read_sas(params$data3)
+de <- read_sas(params$data3)
 de <- de |>
       filter(!str_detect(DEYN01,regex("Check here if no data recorded",ignore_case = T))) |>
       mutate(Subject = as.character(SubjectID),
@@ -167,8 +167,8 @@ read_excel_allsheets <- function(filename, tibble = FALSE, n) {
     names(x) <- sheets
     x
 }
-UID <- read_excel_allsheets(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Sensor Systems\ADC-US-RES-23238_InHouse Sensor\Statistics\Programs\Outputs\SE005\AL\GKS NP 2 - Serialization.xlsx)"),tibble = TRUE, n = 3) |>
-  list_rbind()
+# UID <- read_excel_allsheets(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Sensor Systems\ADC-US-RES-23238_InHouse Sensor\Statistics\Programs\Outputs\SE005\AL\GKS NP 2 - Serialization.xlsx)"),tibble = TRUE, n = 3) |>
+#   list_rbind()
 ```
 
 ```{r Test UID}
@@ -188,7 +188,7 @@ UID <- read_excel_allsheets(params$data4,tibble = TRUE, n = 3) |>
 
 ```{r Full Join DU1 with DU2 and anti join with DE, eval = is.character(params$data4)}
 du12de <- du1  %>%
-          select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM1,DUCD,DUDTC1,DUTM1,DUNUM2)  %>%
+          select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM1,DUCD,DUDTC1,DUTM1,DUNUM2) %>%
           full_join(
                 du2  %>%
                 select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM6),
@@ -219,26 +219,6 @@ du12de <- du1  %>%
           select(!c(`__STUDYEVENTREPEATKEY`))  %>%
           arrange(Subject, DUCD, DUDTC1, DUTM1)
 ```
-
-```{r}
-lookup <- c(seq(0,9),LETTERS[!str_detect(LETTERS,"B|I|O|S")])
-
- events |>
-    filter(str_length(`Sensor Serial Number`) == 9) |>
-   separate_wider_position(cols = `Sensor Serial Number`,c(num1 = 1,num2 = 1,num3 = 1,num4 = 1,num5 = 1,num6 = 1,num7 = 1,num8 = 1,num9 = 1)) |> 
-    mutate(across(num1:num9, ~ match(.x,lookup) - 1),
-          # convert integer to binary
-          across(num1:num9, ~ formatC(as.integer(R.utils::intToBin(.x)),width = 5, flag = "0")),
-          # concatenate
-          binary = str_c("000",num1,num2,num3,num4,num5,num6,num7,num8,num9)) |> 
-   separate_wider_position(binary,c(binary1 = 8,binary2 = 8,binary3 = 8,binary4 = 8,binary5 = 8,binary6 = 8),cols_remove = F) |> 
-    mutate(across(c(binary1:binary6), ~ str_pad(R.utils::intToHex(strtoi(.x, base = 2)),2,pad = "0")),
-           `Sensor Serial Number` =
-           str_to_upper(str_c("E07A",binary1,binary2,binary3,binary4,binary5,binary6))
-           
-                ) |> View()
-```
-
 
 ```{r Convert sensor serial number to UID if needed}
 convert_sensor_serial_number_to_UID <- function(data,col){
@@ -302,7 +282,7 @@ lookup <- c(seq(0,9),LETTERS[!str_detect(LETTERS,"B|I|O|S")])
 
 ```{r Check if need to convert}
 if (any(median(str_length(du12de$DUNUM2),na.rm = T) == 16) || any(median(str_length(events$`Sensor Serial Number`),na.rm = T) == 9)) {
-  events1 <- events |> 
+  events <- events |> 
              convert_sensor_serial_number_to_UID(col = `Sensor Serial Number`)
 }
 ```
@@ -463,6 +443,7 @@ events |>
            Subject = case_when(is.na(Subject) ~ `Subject ID`,
                                    .default = Subject),
           DUNUM1 = as.numeric(DUNUM1))|>
+   select(!DUNUM6) |> 
    arrange(`Subject ID`,DUNUM1) |>
   reactable(paginationType = "jump", highlight = TRUE, searchable = TRUE, defaultPageSize = 6, resizable = TRUE, elementId = "Upload1", filterable = TRUE,
     defaultColDef = colDef(align = "center",minWidth = 120),
