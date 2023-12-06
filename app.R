@@ -30,7 +30,7 @@ ui <- fluidPage(
            column(width = 3,
                   fileInput("de",h6("Please Upload DE"),accept = ".sas7bdat",width = "400px")),
            column(width = 3,
-                  fileInput("sa",h6("Please Upload Sensor Sheet"),accept = ".xlsx",width = "400px")),
+                  fileInput("ss",h6("Please Upload Sensor Sheet"),accept = ".xlsx",width = "400px")),
                   actionButton("reset","Refresh")),
   br(),
   fluidRow(column(width = 12, downloadButton("download","Download Report",class = "btn-block", style = "width:100%;")))
@@ -84,7 +84,7 @@ server <- function(input, output, session) {
                      data1 = input$du1$datapath,
                      data2 = input$du2$datapath,
                      data3 = input$de$datapath,
-                     data4 = input$sa$datapath,
+                     data4 = input$ss$datapath,
                      data5 = str_c(short,input$study)
       )
       id <- showNotification(

@@ -20,7 +20,7 @@ params:
       value: FALSE
       input: file
     data4:
-      label: "Upload SA :"
+      label: "Upload SS :"
       value: FALSE
       input: file
     data5: FALSE
@@ -120,7 +120,7 @@ events <- events_path |>
 ```
 
 ```{r Test DU1}
-# du1 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\003\du1.sas7bdat)"))
+# du1 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\du1.sas7bdat)"))
 ```
 
 ```{r DU1}
@@ -134,7 +134,7 @@ du1 <- du1 |>
 ```
 
 ```{r Test DU2}
-# du2 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\003\du2.sas7bdat)"))
+# du2 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\du2.sas7bdat)"))
 ```
 
 ```{r DU2}
@@ -147,7 +147,7 @@ du2 <- du2 |>
 ```
 
 ```{r Test DE}
-# de <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\003\de.sas7bdat)"))
+# de <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\de.sas7bdat)"))
 ```
 
 ```{r DE}
@@ -179,29 +179,44 @@ read_excel_allsheets <- function(filename, tibble = FALSE, n) {
 #        set_names(c("Serial Number","UID"))
 ```
 
-```{r Load sensor serial number conversion, eval = params$data4}
+```{r Load sensor serial number conversion, eval = is.character(params$data4)}
 UID <- read_excel_allsheets(params$data4,tibble = TRUE, n = 3) |>
        list_rbind() |> 
        select(1:2) |> 
-       set_names(c("UID","Serial Number"))
+       set_names(c("Serial Number","UID"))
 ```
 
-```{r Full Join DU1 with DU2 and anti join with DE}
-du12de <- du1  %>% 
-          select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM1,DUCD,DUDTC1,DUTM1,DUNUM2)  %>% 
+```{r Full Join DU1 with DU2 and anti join with DE, eval = is.character(params$data4)}
+du12de <- du1  %>%
+          select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM1,DUCD,DUDTC1,DUTM1,DUNUM2)  %>%
           full_join(
                 du2  %>%
                 select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM6),
-                by = join_by(Subject, `__STUDYEVENTREPEATKEY`))  %>% 
+                by = join_by(Subject, `__STUDYEVENTREPEATKEY`))  %>%
           # Consider replaced sensor
           anti_join(
                 de  %>%
                 filter(str_detect(DEORES06,regex("Sensor replaced",ignore_case = T))),
                 by = c("Subject" = "Subject", "DUNUM1" = "DESPID02", "DUNUM2" = "DESPID14"))  %>%
-          {if (params$data4) left_join(.,UID, by = join_by(DUNUM2 == `Serial Number`)) else .}  %>% 
-          {if (params$data4) rename(.,DUNUM2 = UID,
-                                    UID = DUNUM2) else .}  %>%
-          select(!c(`__STUDYEVENTREPEATKEY`))  %>% 
+          left_join(UID, by = join_by(DUNUM2 == `Serial Number`))  %>%
+          rename(DUNUM2 = UID, UID = DUNUM2)  %>%
+          select(!c(`__STUDYEVENTREPEATKEY`))  %>%
+          arrange(Subject, DUCD, DUDTC1, DUTM1)
+```
+
+```{r Full Join DU1 with DU2 and anti join with DE if no, eval = !is.character(params$data4)}
+du12de <- du1  %>%
+          select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM1,DUCD,DUDTC1,DUTM1,DUNUM2)  %>%
+          full_join(
+                du2  %>%
+                select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM6),
+                by = join_by(Subject, `__STUDYEVENTREPEATKEY`))  %>%
+          # Consider replaced sensor
+          anti_join(
+                de  %>%
+                filter(str_detect(DEORES06,regex("Sensor replaced",ignore_case = T))),
+                by = c("Subject" = "Subject", "DUNUM1" = "DESPID02", "DUNUM2" = "DESPID14"))  %>%
+          select(!c(`__STUDYEVENTREPEATKEY`))  %>%
           arrange(Subject, DUCD, DUDTC1, DUTM1)
 ```
 
@@ -358,7 +373,7 @@ events |>
                        DUTM1 = colDef(name = "Time of Upload"),
                        DUNUM2 = colDef(name = "Sensor Serial Number"),
                        DUNUM6 = colDef(name = "Reader Serial Number")))))
-} else if ((any(str_detect(events_path,regex("Mobi",ignore_case = T))))) {
+} else if ((any(str_detect(events_path,regex("Mobi|GKS",ignore_case = T))))) {
   # All matched
 SubjectID <- events |> 
              count(`Subject ID`,`Condition ID`,`Sensor Serial Number`) |>
