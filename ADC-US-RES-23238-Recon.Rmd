@@ -56,6 +56,8 @@ events_list <- list.files(path = params$data5,full.names = T,pattern = "*events.
 
 ```{r Load events.csv or devices.csv}
 # events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\005)"),recurse = T,glob = "*events.csv|*devices.csv")
+# events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\003\UUU)"),recurse = T,glob = "*events.csv|*devices.csv")
+# events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\004\UUU)"),recurse = T,glob = "*events.csv|*devices.csv")
 # events_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\008\UUU)"),recurse = T,glob = "*events.csv|*devices.csv")
 ```
 
@@ -118,7 +120,7 @@ events <- events_path |>
 ```
 
 ```{r Test DU1}
-# du1 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\du1.sas7bdat)"))
+# du1 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\003\du1.sas7bdat)"))
 ```
 
 ```{r DU1}
@@ -132,7 +134,7 @@ du1 <- du1 |>
 ```
 
 ```{r Test DU2}
-# du2 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\du2.sas7bdat)"))
+# du2 <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\003\du2.sas7bdat)"))
 ```
 
 ```{r DU2}
@@ -145,7 +147,7 @@ du2 <- du2 |>
 ```
 
 ```{r Test DE}
-# de <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\008\de.sas7bdat)"))
+# de <- read_sas(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23238\OpenClinicaExtract\Current\003\de.sas7bdat)"))
 ```
 
 ```{r DE}
@@ -170,10 +172,10 @@ read_excel_allsheets <- function(filename, tibble = FALSE, n) {
 ```
 
 ```{r Test UID}
-# UID <- read_excel_allsheets(gsub("\\\\", "/", 
-#       r"(C:\Users\LINAX10\Downloads\Lactate Short Sensor Serialization.xlsx)"),tibble = TRUE, n = 3) |> 
-#        list_rbind() |> 
-#        select(1:2) |> 
+# UID <- read_excel_allsheets(gsub("\\\\", "/",
+#       r"(C:\Users\LINAX10\Downloads\Lactate Short Sensor Serialization.xlsx)"),tibble = TRUE, n = 3) |>
+#        list_rbind() |>
+#        select(1:2) |>
 #        set_names(c("Serial Number","UID"))
 ```
 
@@ -181,67 +183,183 @@ read_excel_allsheets <- function(filename, tibble = FALSE, n) {
 UID <- read_excel_allsheets(params$data4,tibble = TRUE, n = 3) |>
        list_rbind() |> 
        select(1:2) |> 
-       set_names(c("Serial Number","UID"))
+       set_names(c("UID","Serial Number"))
 ```
 
-```{r}
-du12de <- du1 |> 
-          select(Subject,`__STUDYEVENTREPEATKEY`,DUDTC1,DUTM1,DUNUM1,DUCD,DUNUM2) |> 
+```{r Full Join DU1 with DU2 and anti join with DE}
+du12de <- du1  %>% 
+          select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM1,DUCD,DUDTC1,DUTM1,DUNUM2)  %>% 
           full_join(
-                du2 |>
+                du2  %>%
                 select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM6),
-                by = join_by(Subject, `__STUDYEVENTREPEATKEY`)) |> 
+                by = join_by(Subject, `__STUDYEVENTREPEATKEY`))  %>% 
           # Consider replaced sensor
           anti_join(
-                de |>
+                de  %>%
                 filter(str_detect(DEORES06,regex("Sensor replaced",ignore_case = T))),
-                by = c("Subject" = "Subject", "DUNUM1" = "DESPID02", "DUNUM2" = "DESPID14")) |>
-          left_join(UID, by = join_by(DUNUM2 == `Serial Number`)) |> 
-          select(!c(`__STUDYEVENTREPEATKEY`)) |> 
+                by = c("Subject" = "Subject", "DUNUM1" = "DESPID02", "DUNUM2" = "DESPID14"))  %>%
+          {if (params$data4) left_join(.,UID, by = join_by(DUNUM2 == `Serial Number`)) else .}  %>% 
+          {if (params$data4) rename(.,DUNUM2 = UID,
+                                    UID = DUNUM2) else .}  %>%
+          select(!c(`__STUDYEVENTREPEATKEY`))  %>% 
           arrange(Subject, DUCD, DUDTC1, DUTM1)
 ```
 
-```{r Convert UID to sensro serial number if needed}
-convert_UID_to_sensor_serial_number <- function(data,col){
-
+```{r Convert sensor serial number to UID if needed}
+convert_sensor_serial_number_to_UID <- function(data,col){
 lookup <- c(seq(0,9),LETTERS[!str_detect(LETTERS,"B|I|O|S")])
 
-data |> 
-   # Length should be 16
-   filter(str_length({{col}}) == 16) |>
-   # Big O in the sensor serial number
-   mutate({{col}} := str_replace({{col}},"O","0")) |> 
-   separate_wider_position({{col}},c(4,binary1 = 2,binary2 = 2,binary3 = 2,binary4 = 2,binary5 = 2,binary6 = 2),cols_remove = F) |>
-   # Hex to Binary
-   mutate(across(c(binary1:binary6), ~ formatC(as.integer(R.utils::intToBin(strtoi(.x, base = 16))),width = 8, flag = "0")),     
-          binary = str_c(binary1,binary2,binary3,binary4,binary5,binary6)) |> 
-  separate_wider_position(binary, c(3,num1 = 5,num2 = 5,num3 = 5,num4 = 5,num5 = 5,num6 = 5,
-                                     num7 = 5,num8 = 5,num9 = 5)) |>
-  # Binary to integer
-  mutate(across(c(num1:num9), ~ strtoi(.x, base = 2) + 1),
-        `Sensor Serial Number` = str_c(lookup[num1],lookup[num2],lookup[num3],lookup[num4],
-                                       lookup[num5],lookup[num6],lookup[num7],lookup[num8],
-                                       lookup[num9])) |>
-  select(!c(contains("binary"),num_range("num",1:9))) |> 
-  bind_rows(
-            data |> 
-            filter(str_length({{col}}) != 16)) |> 
-  mutate(`Sensor Serial Number` = case_when(is.na(`Sensor Serial Number`) ~ {{col}},
-                                            .default = `Sensor Serial Number`)) |>   
-  rename(DUNUM2 = `Sensor Serial Number`,
-        `Sensor Serial Number` = DUNUM2) |>
-  select(!c(UID,`Sensor Serial Number`)) |>
-  arrange(Subject)
+ data |>
+    filter(str_length({{col}}) == 9) |>
+   separate_wider_position(cols = {{col}},c(num1 = 1,num2 = 1,num3 = 1,num4 = 1,num5 = 1,num6 = 1,num7 = 1,num8 = 1,num9 = 1)) |> 
+          # Find the index  
+   mutate(across(num1:num9, ~ match(.x,lookup) - 1),
+          # convert integer to binary
+          across(num1:num9, ~ formatC(as.integer(R.utils::intToBin(.x)),width = 5, flag = "0")),
+          # concatenate
+          binary = str_c("000",num1,num2,num3,num4,num5,num6,num7,num8,num9)) |> 
+          # Convert binary to hex
+          separate_wider_position(binary,c(binary1 = 8,binary2 = 8,binary3 = 8,binary4 = 8,binary5 = 8,binary6 = 8),cols_remove = F) |>
+          mutate(across(c(binary1:binary6), ~ R.utils::intToHex(strtoi(.x, base = 2))),
+                `Sensor Serial Number` = str_to_upper(str_c("E07A0",binary1,binary2,binary3,binary4,binary5,binary6))) |> 
+         select(!c(num1:binary)) |> 
+     bind_rows(
+       data |> 
+         filter(str_length({{col}}) != 9 | is.na({{col}}))
+     ) |> 
+     arrange(`Subject ID`,`Condition ID`,Date,Time)
 }
+```
 
-if (any(str_length(du12de$UID) == 16)) {
-  du12de <- du12de |>
-            convert_UID_to_sensor_serial_number(col = UID)
+```{r Convert UID to sensor serial number if needed}
+# convert_UID_to_sensor_serial_number <- function(data,col){
+# 
+# lookup <- c(seq(0,9),LETTERS[!str_detect(LETTERS,"B|I|O|S")])
+# 
+# data |> 
+#    # Length should be 16
+#    filter(str_length({{col}}) == 16) |>
+#    # Big O in the sensor serial number
+#    mutate({{col}} := str_replace({{col}},"O","0")) |> 
+#    separate_wider_position({{col}},c(4,binary1 = 2,binary2 = 2,binary3 = 2,binary4 = 2,binary5 = 2,binary6 = 2),cols_remove = F) |>
+#    # Hex to Binary
+#    mutate(across(c(binary1:binary6), ~ formatC(as.integer(R.utils::intToBin(strtoi(.x, base = 16))),width = 8, flag = "0")),     
+#           binary = str_c(binary1,binary2,binary3,binary4,binary5,binary6)) |> 
+#   separate_wider_position(binary, c(3,num1 = 5,num2 = 5,num3 = 5,num4 = 5,num5 = 5,num6 = 5,
+#                                      num7 = 5,num8 = 5,num9 = 5)) |>
+#   # Binary to integer
+#   mutate(across(c(num1:num9), ~ strtoi(.x, base = 2) + 1),
+#         `Sensor Serial Number` = str_c(lookup[num1],lookup[num2],lookup[num3],lookup[num4],
+#                                        lookup[num5],lookup[num6],lookup[num7],lookup[num8],
+#                                        lookup[num9])) |>
+#   select(!c(contains("binary"),num_range("num",1:9))) |> 
+#   bind_rows(
+#             data |> 
+#             filter(str_length({{col}}) != 16)) |> 
+#   mutate(`Sensor Serial Number` = case_when(is.na(`Sensor Serial Number`) ~ {{col}},
+#                                             .default = `Sensor Serial Number`)) |>   
+#   rename(DUNUM2 = `Sensor Serial Number`,
+#         `Sensor Serial Number` = DUNUM2) |>
+#   select(!c(UID,`Sensor Serial Number`)) |>
+#   arrange(Subject)
+# }
+```
+
+```{r Check if need to convert}
+if (any(median(str_length(du12de$DUNUM2),na.rm = T) == 16) || any(median(str_length(events$`Sensor Serial Number`),na.rm = T) == 9)) {
+  events <- events |> 
+            convert_sensor_serial_number_to_UID(col = `Sensor Serial Number`)
 }
 ```
 
 ```{r}
-# All matched
+# Apol or Atna
+if (any(str_detect(events_path,regex("Apol|Atna",ignore_case = T)))){
+SubjectID <- events |> 
+             count(`Subject ID`,`Condition ID`,`Sensor Serial Number`,`Reader Serial Number`,Date ,Time) |>
+             full_join(
+               du12de |>
+               dplyr::count(Subject,DUCD,DUNUM2,DUNUM6,DUDTC1,DUTM1), by = c("Subject ID" = "Subject", "Condition ID" = "DUCD","Sensor Serial Number" = "DUNUM2","Reader Serial Number" = "DUNUM6", "Date" = "DUDTC1")) |> 
+             filter(n.x == n.y)
+
+UUU_missing <- events |>
+               anti_join(SubjectID, by = c("Subject ID","Condition ID","Sensor Serial Number","Reader Serial Number","Date","Time")) |>
+               anti_join(
+                 du12de |>
+                 anti_join(SubjectID, by = c("Subject" = "Subject ID", "DUCD" = "Condition ID","DUNUM2" = "Sensor Serial Number","DUNUM6" = "Reader Serial Number","DUDTC1" = "Date")),
+                by = c("Subject ID" = "Subject","Condition ID" = "DUCD"))
+
+du12de_missing <- du12de |>
+                  anti_join(SubjectID, by = c("Subject" = "Subject ID", "DUCD" = "Condition ID","DUNUM2" = "Sensor Serial Number","DUNUM6" = "Reader Serial Number","DUDTC1" = "Date")) |>
+                  anti_join(
+                   events |>
+                   anti_join(SubjectID, by = c("Subject ID","Condition ID","Sensor Serial Number","Reader Serial Number","Date","Time")),by = c("Subject" = "Subject ID", "DUCD" = "Condition ID"))
+htmltools::browsable(
+   tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download as CSV"),
+      onclick = "Reactable.downloadDataCSV('Upload1', 'Recon Report.csv')"
+    ),
+
+bind_rows(
+  # Combine All matched UUU with EDC
+events %>%
+    semi_join(SubjectID, by = c("Subject ID","Condition ID","Sensor Serial Number","Reader Serial Number","Date","Time")) %>%
+    bind_cols(du12de %>%
+              semi_join(SubjectID, by = c("Subject" = "Subject ID", "DUCD" = "Condition ID","DUNUM2" = "Sensor Serial Number","DUNUM6" = "Reader Serial Number","DUDTC1" = "Date"))),
+
+# UUU condition ID not match EDC condition ID or missing data in EDC and UUU
+UUU_missing |>
+    full_join(
+     du12de_missing,
+       by = c("Subject ID" = "Subject","Sensor Serial Number" = "DUNUM2", "Reader Serial Number" = "DUNUM6","Date" = "DUDTC1"),keep = T),
+
+# Sensor Serial Number and Reader Serial Number
+events |>
+    anti_join(SubjectID, by = c("Subject ID","Condition ID","Sensor Serial Number","Reader Serial Number","Date","Time")) |>
+    anti_join(UUU_missing,by = c("Subject ID","Condition ID","Sensor Serial Number","Reader Serial Number","Date","Time")) |>
+    mutate(ID = row_number(),.by = c(`Subject ID`,`Condition ID`, Date, Time)) |>
+   full_join(
+    du12de |>
+    anti_join(SubjectID, by = c("Subject" = "Subject ID", "DUCD" = "Condition ID","DUNUM2" = "Sensor Serial Number", "DUNUM6" = "Reader Serial Number","DUDTC1" = "Date")) |>
+    anti_join(du12de_missing, by = c("Subject", "DUCD", "DUNUM2","DUNUM6")) |>
+    mutate(ID = row_number(),.by = c(Subject, DUCD, DUDTC1,DUTM1)),
+    by = c("Subject ID" = "Subject","Condition ID" = "DUCD", "ID" = "ID"), keep = T) |>
+  select(!contains(c("ID.x","ID.y")))) |> 
+   # Add Comments
+  mutate(`Comments On Condition ID` =
+            case_when(`Condition ID` != DUCD ~ "Please Correct Condition ID",
+                      .default =  ""),
+        `Comments On Sensor Serial Number` =
+            case_when(`Sensor Serial Number` != DUNUM2 ~ "Please Correct Sensor Serial Number",
+                      .default =  ""),
+        `Comments On Reader Serial Number` =
+            case_when(`Reader Serial Number` != DUNUM6 ~ "Please Correct Reader Serial Number",
+                      .default =  ""),
+         `Comments On Missing Data` =
+           case_when(is.na(`Subject ID`) & is.na(`Condition ID`) ~ "Missing Upload",
+                     is.na(Subject) & is.na(DUCD) ~ "Missing EDC",
+           .default = ""),
+         `Subject ID` = case_when(is.na(`Subject ID`) ~ Subject,
+                                   .default = `Subject ID`),
+           Subject = case_when(is.na(Subject) ~ `Subject ID`,
+                                   .default = Subject),
+          DUNUM1 = as.numeric(DUNUM1))|>
+   arrange(`Subject ID`,DUNUM1) |> 
+   reactable(paginationType = "jump", highlight = TRUE, searchable = TRUE, defaultPageSize = 6, resizable = TRUE, elementId = "Upload1", filterable = TRUE,
+    defaultColDef = colDef(align = "center",minWidth = 120),
+    columnGroups =  list(
+                  colGroup(name = "AUU/UUU",columns = c("Subject ID","Condition ID","Date","Time","Sensor Serial Number","Reader Serial Number"),align = "center",sticky = "left"),
+                  colGroup(name = "EDC",columns = c("Subject","DUNUM1","DUCD","DUDTC1","DUTM1","DUDTC1","DUNUM2","DUNUM6"),align = "center")
+                   ),
+        columns = list(DUNUM1 = colDef(name = "Sensor Number"),
+                       DUCD = colDef(name = "Condition ID"),
+                       DUDTC1 = colDef(name = "Date of Upload"),
+                       DUTM1 = colDef(name = "Time of Upload"),
+                       DUNUM2 = colDef(name = "Sensor Serial Number"),
+                       DUNUM6 = colDef(name = "Reader Serial Number")))))
+} else if ((any(str_detect(events_path,regex("Mobi",ignore_case = T))))) {
+  # All matched
 SubjectID <- events |> 
              count(`Subject ID`,`Condition ID`,`Sensor Serial Number`) |>
              full_join(
@@ -314,16 +432,17 @@ events |>
   reactable(paginationType = "jump", highlight = TRUE, searchable = TRUE, defaultPageSize = 6, resizable = TRUE, elementId = "Upload1", filterable = TRUE,
     defaultColDef = colDef(align = "center",minWidth = 120),
     columnGroups =  list(
-                  colGroup(name = "AUU/UUU",columns = c("Subject ID","Date","Time","Condition ID","Sensor Serial Number"),align = "center",sticky = "left"),
-                  colGroup(name = "EDC",columns = c("Subject","DUCD","DUDTC1","DUTM1","DUDTC1","DUNUM2","DUNUM1"),align = "center")
+                  colGroup(name = "AUU/UUU",columns = c("Subject ID","Condition ID","Date","Time","Sensor Serial Number"),align = "center",sticky = "left"),
+                  colGroup(name = "EDC",columns = c("Subject","DUNUM1","DUCD","DUDTC1","DUTM1","DUNUM2"),align = "center")
                    ),
-        columns = list(DUDTC1 = colDef(name = "Date of Upload"),
-                       DUTM1 = colDef(name = "Time of Upload"),
-                       DUNUM1 = colDef(name = "Sensor Number"),
+        columns = list(DUNUM1 = colDef(name = "Sensor Number"),
                        DUCD = colDef(name = "Condition ID"),
+                       DUDTC1 = colDef(name = "Date of Upload"),
+                       DUTM1 = colDef(name = "Time of Upload"),
                        DUNUM2 = colDef(name = "Sensor Serial Number")
                    )
   )
    )
 )
+}
 ```
