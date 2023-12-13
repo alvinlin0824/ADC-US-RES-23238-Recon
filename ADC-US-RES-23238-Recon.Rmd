@@ -187,36 +187,36 @@ UID <- read_excel_allsheets(params$data4,tibble = TRUE, n = 3) |>
 ```
 
 ```{r Full Join DU1 with DU2 and anti join with DE, eval = is.character(params$data4)}
-du12de <- du1  %>%
-          select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM1,DUCD,DUDTC1,DUTM1,DUNUM2) %>%
+du12de <- du1  |> 
+          select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM1,DUCD,DUDTC1,DUTM1,DUNUM2) |>
           full_join(
-                du2  %>%
+                du2  |>
                 select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM6),
-                by = join_by(Subject, `__STUDYEVENTREPEATKEY`))  %>%
+                by = join_by(Subject, `__STUDYEVENTREPEATKEY`))  |>
           # Consider replaced sensor
           anti_join(
-                de  %>%
+                de  |>
                 filter(str_detect(DEORES06,regex("Sensor replaced",ignore_case = T))),
-                by = c("Subject" = "Subject", "DUNUM1" = "DESPID02", "DUNUM2" = "DESPID14"))  %>%
-          left_join(UID, by = join_by(DUNUM2 == `Serial Number`))  %>%
-          rename(DUNUM2 = UID, UID = DUNUM2)  %>%
-          select(!c(`__STUDYEVENTREPEATKEY`))  %>%
+                by = c("Subject" = "Subject", "DUNUM1" = "DESPID02", "DUNUM2" = "DESPID14")) |>
+          left_join(UID, by = join_by(DUNUM2 == `Serial Number`)) |>
+          rename(DUNUM2 = UID, UID = DUNUM2) |>
+          select(!c(`__STUDYEVENTREPEATKEY`)) |>
           arrange(Subject, DUCD, DUDTC1, DUTM1)
 ```
 
 ```{r Full Join DU1 with DU2 and anti join with DE if no, eval = !is.character(params$data4)}
-du12de <- du1  %>%
-          select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM1,DUCD,DUDTC1,DUTM1,DUNUM2)  %>%
+du12de <- du1 |>
+          select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM1,DUCD,DUDTC1,DUTM1,DUNUM2) |>
           full_join(
-                du2  %>%
+                du2 |>
                 select(Subject,`__STUDYEVENTREPEATKEY`,DUNUM6),
-                by = join_by(Subject, `__STUDYEVENTREPEATKEY`))  %>%
+                by = join_by(Subject, `__STUDYEVENTREPEATKEY`)) |>
           # Consider replaced sensor
           anti_join(
-                de  %>%
+                de |>
                 filter(str_detect(DEORES06,regex("Sensor replaced",ignore_case = T))),
-                by = c("Subject" = "Subject", "DUNUM1" = "DESPID02", "DUNUM2" = "DESPID14"))  %>%
-          select(!c(`__STUDYEVENTREPEATKEY`))  %>%
+                by = c("Subject" = "Subject", "DUNUM1" = "DESPID02", "DUNUM2" = "DESPID14")) |>
+          select(!c(`__STUDYEVENTREPEATKEY`)) |>
           arrange(Subject, DUCD, DUDTC1, DUTM1)
 ```
 
@@ -225,6 +225,7 @@ convert_sensor_serial_number_to_UID <- function(data,col){
 lookup <- c(seq(0,9),LETTERS[!str_detect(LETTERS,"B|I|O|S")])
 
  data |>
+    mutate(`Sensor SN` = {{col}},.before = {{col}}) |> 
     filter(str_length({{col}}) == 9) |>
    separate_wider_position(cols = {{col}},c(num1 = 1,num2 = 1,num3 = 1,num4 = 1,num5 = 1,num6 = 1,num7 = 1,num8 = 1,num9 = 1)) |> 
           # Find the index  
